@@ -1,0 +1,139 @@
+#!/bin/bash
+
+# Mugafo's Bash
+# Uses glyphs from https://www.nerdfonts.com/ patched fonts.
+# The glyphs will need to be removed if not using a patched font.
+# I'm using the Caskaydia Cove patched font
+
+tput sgr0
+bold=$(tput bold)
+reset=$(tput sgr0)
+env_color=26
+env_default=26
+env_venv=22
+env_prod=88
+env_test=166
+
+# Folder Name
+folder_background=$(tput setab $env_color);
+folder_foreground=$(tput setaf 15);
+folder_transition=$(tput setaf $env_color);
+
+# Branch Name
+branch_background=$(tput setab 239);
+branch_foreground=$(tput setaf 253);
+branch_transition=$(tput setaf 239);
+
+# Git Status
+has_transition=false;
+status_background=$(tput setab 236);
+status_transition=$(tput setaf 236);
+status_modified=$(tput setaf 202);
+status_added=$(tput setaf 33);
+status_removed=$(tput setaf 160);
+status_renamed=$(tput setaf 28);
+status_untracked=$(tput setaf 220);
+status_unpushed=$(tput setaf 10);
+status_stashed=$(tput setaf 68);
+
+function add_transition() {
+  if [[ $has_transition = false ]]; then
+    has_transition=true;
+    echo -ne "\001${status_background}${branch_transition}\002";
+  fi;
+}
+
+function parse_git() {
+  local git="$(git status --porcelain=2 --branch 2>/dev/null)";  
+  if [[ ! -z $git ]]; then
+    echo -ne "\001${branch_background}${folder_transition}\002\001${branch_foreground}${bold}\002  ";
+    
+    # Branch name or commit hash
+    local git_branch="$(awk '/branch.head/ {print $3}' <<< "${git}")"; 
+    if [[ $git_branch != "(detached)" ]]; then
+      echo -ne "${git_branch} ";
+    else
+      echo -ne "HEAD:$(awk '/branch.oid/ {print substr($3,0,7)}' <<< "${git}") ";
+    fi;
+
+    # Modified files
+    local git_modified=$(grep -c "^[12] .M" <<< "${git}");
+    if [[ $git_modified -gt 0 ]]; then
+      add_transition;
+      echo -ne "\001${status_modified}\002 $git_modified";
+    fi;
+
+    # Added files
+    local git_added=$(grep -c "^[12] A." <<< "${git}");
+    if [[ $git_added -gt 0 ]]; then
+      add_transition;
+      echo -ne "\001${status_added}\002 $git_added";
+    fi;
+
+    # Removed files
+    local git_removed=$(grep -c "^[12] .D" <<< "${git}");
+    if [[ $git_removed -gt 0 ]]; then
+      add_transition;
+      echo -ne "\001${status_removed}\002 $git_removed";
+    fi;
+
+    # Renamed files
+    local git_renamed=$(grep -c "^[12] R." <<< "${git}");
+    if [[ $git_renamed -gt 0 ]]; then
+      add_transition;
+      echo -ne "\001${status_renamed}\002 $git_renamed";
+    fi;
+
+    # Untracked files
+    local git_untracked=$(grep -c "^?" <<< "${git}");
+    if [[ $git_untracked -gt 0 ]]; then
+      add_transition;
+      echo -ne "\001${status_untracked}\002 $git_untracked";
+    fi;
+
+    # Stashes
+    local stash_count=$(git stash list | wc -l | tr -d ' ');
+    if [[ $stash_count -gt 0 ]]; then
+      add_transition;
+      echo -ne "\001${status_stashed}\002 ⚑$stash_count";
+    fi;
+
+    # Unpushed Commits
+    if [[ $(git cherry -v 2>/dev/null) != "" ]]; then
+      add_transition;
+      echo -ne "\001${status_unpushed}\002 ";
+    fi;
+    
+    # Check for git statuses that added text, if none, use the branch transition color
+    if [[ $has_transition = false ]]; then
+      echo -ne "\001${reset}${branch_transition}\002 ";
+    else
+      echo -ne " \001${reset}${status_transition}\002 ";
+    fi;
+  else
+    echo -ne "\001${reset}${folder_transition}\002 ";
+  fi;
+}
+
+set_bash_prompt() {
+  if [[ $VIRTUAL_ENV != "" ]]; then
+    env_color=$env_venv
+  else
+    local kubernetes_context=$(kubectl config current-context 2>/dev/null)
+    if [[ $kubernetes_context == "prod" ]]; then
+      env_color=$env_prod
+    elif [[ $kubernetes_context == "test" ]]; then
+      env_color=$env_test
+    else
+      env_color=$env_default
+    fi;
+  fi;
+  
+  folder_background=$(tput setab $env_color);
+  folder_transition=$(tput setaf $env_color);
+  
+  PS1="\001\\r${folder_background}${folder_foreground}\002 📁 \W \$(parse_git)\001${reset}\033]0;\W\a\002"
+}
+
+PROMPT_COMMAND=set_bash_prompt
+PROMPT_COMMAND="history -a; history -c; history -r; $PROMPT_COMMAND"

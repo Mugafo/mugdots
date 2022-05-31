@@ -1,1 +1,1 @@
-# mugdots
+## Mugafo's dotfiles

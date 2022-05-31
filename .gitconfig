@@ -1,0 +1,53 @@
+[alias]
+	c = commit -am
+# 	# View abbreviated SHA, description, and history graph of the latest 20 commits	
+	recent = log --color --graph --decorate -n 20 --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --
+# 	# Show the diff between the latest commit and the current state
+	diff = diff --color --color-words --abbrev
+	diffcompare = !"d() { git diff --patch-with-stat HEAD~$1; }; git diff-index --quiet HEAD -- || clear; d"
+	branches = branch -a
+	remotes = remote -v
+	cob = checkout -b
+	track = push -u origin
+
+[merge]
+	tool = bc3
+[mergetool "bc3"]
+    cmd = ~/BComp.exe \"$(wslpath -aw $BASE)\" \"$(wslpath -aw $LOCAL)\" \"$(wslpath -aw $REMOTE)\" \"$(wslpath -aw $MERGED)\"
+[diff]
+	tool = bc3
+[difftool]
+    prompt = false
+[difftool "bc3"]
+    cmd = ~/BComp.exe \"$(wslpath -aw $LOCAL)\" \"$(wslpath -aw $REMOTE)\"
+
+[core]
+	autocrlf = input
+	preloadindex = true
+	fscache = true
+	
+[user]
+	name = Mugafo
+	email = gitbot@mugafo.com
+	signingkey = 0x118E79269CD0C616
+
+[push]
+	default = simple
+	
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+	
+[gc]
+	auto = 256
+	
+[commit]
+	gpgsign = true
+	
+[mergetool]
+	keepBackup = false
+	
+[gpg]
+	program = gpg
